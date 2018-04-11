@@ -1,21 +1,16 @@
-# http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:average_directional_index_adx#calculation
 
 from collections import deque
 import numpy as np
 import pandas as pd 
 
 
-# Put any initialization logic here.  The context object will be passed to
-# the other methods in your algorithm.
+
 def initialize(context):
-    #using SPXL 3x leved SP indexhttps://www.quantopian.com/algorithms
-    context.ndx = sid(37514)
-    #container to count the number of event windows we have cycled through
-    context.ticks = 0
-    #Wilder uses a rolling window of 14 days for various smoothing within
-    #the indicator calculation
+    
+  
+ 
     context.window_length = 14
-    #a collection of data containers that will be used during steps of the calculation
+    
     context.highs = deque([0] * 2, 2)
     context.lows = deque([0] * 2, 2)
     context.closes = deque([0] * 2, 2)
@@ -23,8 +18,7 @@ def initialize(context):
     context.pDM_bucket = deque([0] * context.window_length, context.window_length)
     context.mDM_bucket = deque([0] * context.window_length, context.window_length)
     context.dx_bucket = deque([0] * context.window_length, context.window_length)
-    #not sure why I had to define these here, but to print them later when debuggin
-    #I found that I had to declare them here
+    
     context.av_true_range = 0
     context.av_pDM = 0
     context.av_mDM = 0
@@ -36,17 +30,17 @@ def initialize(context):
     context.mDI = 0
     pass
 
-# Will be called on every trade event for the securities you specify. 
+
 def handle_data(context, data):
-    #iterate event window counter
+   
     context.ticks += 1 
-    #pass high, low, close prices to our rolling containers
+   
     context.highs.appendleft(data.current(context.ndx,'high'))
     context.lows.appendleft(data.current(context.ndx,'low'))
     context.closes.appendleft(data.current(context.ndx, 'close'))
     
     
-    #ensure no calculation on first window
+    
     if context.closes[0] == 0:
         high_less_low = 0
         high_less_prec_close = 0
@@ -63,29 +57,27 @@ def handle_data(context, data):
         prec_low_less_low = context.lows[1]-context.lows[0]
     
     
-    #calculate the Plus Directional Movement
+   
     if high_less_prec_high > prec_low_less_low:
         pDM_one = max(high_less_prec_high,0)
     else:
         pDM_one = 0
 
-    #calculate the Minus Directional Movement  
+    
     if prec_low_less_low > high_less_prec_high:
         mDM_one = max(prec_low_less_low,0)
     else:
         mDM_one = 0
         
-    #add the current pDM and mDM to the bucket to aid calculation of the first point in the
-    #smoothed statistic
+   
     context.pDM_bucket.appendleft(pDM_one)
     context.mDM_bucket.appendleft(mDM_one)
     
-    #calculate the True Range and add to bucket
+   
     true_range = max(high_less_low,high_less_prec_close,low_less_prec_close)
     context.true_range_bucket.appendleft(true_range)
     
-    #once we have collected enough data to have populated the rolling windows adequately
-    #we can start the meat of the calculation
+    
     if context.ticks < (context.window_length + 1):
         context.av_true_range = 1
         context.av_pDM = 0
@@ -107,18 +99,17 @@ def handle_data(context, data):
         context.dx = 100 * context.di_diff / context.di_sum
         
     
-    #add to bucket to provide an average of the DX figures that will
-    #act as a starting point for the rolling ADX calculation
+   
     context.dx_bucket.appendleft(context.dx)
     
-    #the rolling ADX calculation
+   
     if context.ticks == (context.window_length * 2):
         context.adx = sum(context.dx_bucket) / context.window_length
     elif context.ticks > (context.window_length * 2):
         context.adx = ((context.adx * (context.window_length - 1)) + context.dx) / context.window_length
     
 
-    #simple ADX and DI based trading logic
+   
     if (context.adx > 20) and (context.pDI > context.mDI):
         order(sid(37514),1)
         log.debug('buy')
